@@ -34,6 +34,7 @@ function aPrompt(notice,callback){
 	this.beforeRaw || stdin.setRawMode(true);
 	stdout.write(notice);
 	stdin.on('data',this.updateEv);
+	stdin.resume();
 }
 aPrompt.prototype.update=function(data){
 	//清空目前輸出
@@ -121,6 +122,7 @@ aPrompt.prototype.update=function(data){
 	}
 }
 aPrompt.prototype.end=function(){
+	stdin.pause();
 	stdin.removeListener('data',this.updateEv);
 	stdin.setRawMode(this.beforeRaw);
 	stdout.write(new Buffer([0x0D,0x0A]));
