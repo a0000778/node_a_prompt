@@ -19,46 +19,51 @@ function getLength(charCode){
 	}
 	return findAt<lengthTable.length? lengthTable[findAt].length:1;
 }
+function getTotalLength(str){
+	var total=0;
+	var countAt=0;
+	var strLen=str.length;
+	while(countAt<strLen){
+		total+=getLength(str.charCodeAt(countAt++));
+	}
+	return total;
+}
 
-function aPrompt(notice,callback){
+function aPrompt(notice,option,callback){
 	var _=this;
+	if(!callback){
+		callback=option;
+		option={};
+	}
 	
 	this.beforeRaw=stdin.isRaw;
 	this.callback=callback;
+	this.cleanPromptLine=!!option.cleanPromptLine;
 	this.input='';
+	this.notice=new Buffer(notice,'utf8');
+	this.noticeLen=getTotalLength(notice);
 	this.position=0;
 	this.updateEv=function(data){
 		_.update(data);
 	}
 	
 	this.beforeRaw || stdin.setRawMode(true);
-	stdout.write(notice);
+	stdout.write(this.notice);
 	stdin.on('data',this.updateEv);
 	stdin.resume();
 }
 aPrompt.prototype.update=function(data){
 	//清空目前輸出
-	if(this.input.length){
-		var clearToHead=0;
-		var clearCount=0;
-		var clearPosition=0;
-		var clearCharLength;
-		while(clearPosition<this.position){
-			clearCharLength=getLength(this.input.charCodeAt(clearPosition))
-			clearToHead+=clearCharLength;
-			clearCount+=clearCharLength;
-			clearPosition++;
-		}
-		while(clearPosition<this.input.length){
-			clearCount+=getLength(this.input.charCodeAt(clearPosition));
-			clearPosition++;
-		}
-		var clearChars=new Buffer(clearCount*2+clearToHead);
-		clearChars.fill(0x08,0,clearToHead);
-		clearChars.fill(0x20,clearToHead,clearToHead+clearCount);
-		clearChars.fill(0x08,clearToHead+clearCount);
-		stdout.write(clearChars);
-	}
+	var clearToHead=0;
+	var clearCount=0;
+	var clearCharLength=getTotalLength(this.input.substr(0,this.position));
+	clearToHead+=this.noticeLen+clearCharLength;
+	clearCount+=this.noticeLen+clearCharLength;
+	clearCount+=getTotalLength(this.input.substr(this.position));
+	var clearChars=new Buffer(clearCount*2+clearToHead);
+	clearChars.fill(0x08,0,clearToHead);
+	clearChars.fill(0x20,clearToHead,clearToHead+clearCount);
+	clearChars.fill(0x08,clearToHead+clearCount);
 
 	data=data.toString('utf8');
 	var procCharCode,rmLength,procAt=0;
@@ -66,6 +71,8 @@ aPrompt.prototype.update=function(data){
 		procCharCode=data.charCodeAt(procAt);
 		switch(procCharCode){
 			case 0x0D://輸入完畢
+				if(this.cleanPromptLine)
+					stdout.write(clearChars);
 				this.end();
 				return;
 			break;
@@ -106,6 +113,8 @@ aPrompt.prototype.update=function(data){
 	}
 
 	//填入目前輸出
+	stdout.write(clearChars);
+	stdout.write(this.notice);
 	stdout.write(this.input);
 
 	//游標歸位
@@ -125,7 +134,8 @@ aPrompt.prototype.end=function(){
 	stdin.pause();
 	stdin.removeListener('data',this.updateEv);
 	stdin.setRawMode(this.beforeRaw);
-	stdout.write(new Buffer([0x0D,0x0A]));
+	if(!this.cleanPromptLine)
+		stdout.write(new Buffer([0x0D,0x0A]));
 	this.callback(this.input);
 }
 

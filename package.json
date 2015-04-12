@@ -1,6 +1,6 @@
 {
   "name": "a_prompt",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "已修正雙字元的輸入提示 | a prompt with fix multi-byte",
   "main": "index.js",
   "scripts": {
